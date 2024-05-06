@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# Step 1: Find all directories recursively
+directories=$(find /path/to/your/directory -type d)
+
+# Step 2: Filter directories containing only files
+filtered_directories=$(for dir in $directories; do
+    if [ $(find "$dir" -mindepth 1 -type d | wc -l) -eq 0 ]; then
+        echo "$dir"
+    fi
+done)
+
+# Step 3: Extract creation timestamps and sort directories by timestamp in descending order
+sorted_directories=$(for dir in $filtered_directories; do
+    echo "$(stat -c %Y "$dir") $dir"
+done | sort -nr)
+
+# Step 4: Exclude the last two directories based on their timestamps
+excluded_directories=$(echo "$sorted_directories" | tail -n +3)
+
+# Step 5: List the remaining directories
+echo "$excluded_directories" | cut -d' ' -f2
