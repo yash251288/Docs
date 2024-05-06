@@ -19,3 +19,17 @@ excluded_directories=$(echo "$sorted_directories" | awk 'NR>2')
 
 # Step 4: List the remaining directories
 echo "$excluded_directories" | cut -d' ' -f2
+
+
+########
+
+#!/bin/bash
+
+# Find all directories in the specified directory and sort them by creation time in descending order
+directories=$(find /path/to/your/directory -maxdepth 1 -type d -printf "%T@ %p\n" | sort -nr)
+
+# Exclude the last two directories
+excluded_directories=$(echo "$directories" | head -n -2 | awk '{print $2}')
+
+# Print the remaining directories
+echo "$excluded_directories"
