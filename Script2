@@ -106,3 +106,26 @@ excluded_directories=$(echo "$directories" | awk -v latest="$latest_directories"
 
 # Print the remaining directories
 echo "$excluded_directories"
+##########
+
+#!/bin/bash
+
+# Function to escape directory names with spaces
+escape_spaces() {
+  echo "$1" | sed 's/ /\\ /g'
+}
+
+# Find all directories in the specified directory and store their creation time and path
+directories=$(find /path/to/your/directory -maxdepth 1 -type d -exec stat -c "%Y %n" {} +)
+
+# Sort directories by creation time in descending order
+sorted_directories=$(echo "$directories" | sort -rn)
+
+# Extract the two latest created directories
+latest_directories=$(echo "$sorted_directories" | head -n 2 | awk '{print $2}')
+
+# Remove spaces from directory names if present
+escaped_latest_directories=$(escape_spaces "$latest_directories")
+
+# List all directories except the two latest ones
+find /path/to/your/directory -maxdepth 1 -type d ! -name $escaped_latest_directories -printf "%P\n"
