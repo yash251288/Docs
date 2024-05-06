@@ -87,3 +87,22 @@ while IFS= read -r -d '' dir; do
     echo "Processing directory: $dir"
     # Add your actions here, such as copying files, deleting directories, etc.
 done <<< "$directories"
+
+#########
+
+#!/bin/bash
+
+# Define the directory path
+directory="/path/to/your/directory"
+
+# Find all directories in the specified directory and sort them by modification time in descending order
+directories=$(find "$directory" -maxdepth 1 -type d -exec stat --format='%Y %n' {} + | sort -nr)
+
+# Get the timestamps of the latest two directories
+latest_directories=$(echo "$directories" | head -n 2 | awk '{print $1}')
+
+# Exclude the latest two days
+excluded_directories=$(echo "$directories" | awk -v latest="$latest_directories" '$1 < latest' | cut -d' ' -f2-)
+
+# Print the remaining directories
+echo "$excluded_directories"
