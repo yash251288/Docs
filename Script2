@@ -180,3 +180,14 @@ escaped_latest_directories=$(escape_spaces "$latest_directories")
 # List all directories except the two latest ones
 find '/path/to/your/directory' -maxdepth 1 -type d ! -name $(escape_spaces "$(echo "$latest_directories" | sed 's/\n/ -and ! -name /g')") -printf "%P\n"
 
+########
+
+#!/bin/bash
+
+# Specify the directory path
+directory="/path/to/your/directory"
+
+# List all directories in the specified directory, sort them by modification time in reverse order,
+# skip the latest two directories, and print the directory names
+ls -td "$directory"/*/ | tail -n +3 | awk '{print substr($0, index($0,$3))}' | xargs -d '\n' echo
+
