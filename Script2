@@ -49,3 +49,16 @@ remaining_directories=$(ls -lt /path/to/your/directory | grep '^d' | tail -n +3 
 
 # Print the remaining directories
 echo "$remaining_directories"
+
+########
+#!/bin/bash
+
+# Find all directories within the specified directory
+directories=$(find /path/to/your/directory -mindepth 1 -maxdepth 1 -type d)
+
+# Loop through each directory and perform actions
+for dir in $directories; do
+    # Perform actions on the directory
+    echo "Processing directory: $dir"
+    # Add your actions here, such as copying files, deleting directories, etc.
+done
