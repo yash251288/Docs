@@ -39,3 +39,13 @@ echo "$excluded_directories"
 
 # Find all files in the specified directory except those located within the latest two directories
 find /path/to/your/directory -type f ! -newer $(ls -lt /path/to/your/directory | grep '^d' | awk 'NR==3 {print $NF}') -print
+########
+
+
+#!/bin/bash
+
+# List directories sorted by creation time in descending order, skip the first two directories, and extract directory names
+remaining_directories=$(ls -lt /path/to/your/directory | grep '^d' | tail -n +3 | awk '{print $NF}')
+
+# Print the remaining directories
+echo "$remaining_directories"
