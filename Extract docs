@@ -217,3 +217,222 @@ if __name__ == "__main__":
 - **Combine DataFrames (`combine_dataframes` method)**: Concatenates multiple DataFrames into a single DataFrame.
 - **Save to File (`save_to_file` method)**: Saves a DataFrame to a file in the specified format (CSV, Excel, JSON).
 - **Save
+
+
+
+I have data stored in multiple databases, files. I need to implement a way to fetch the data from these multiple sources based on column joins, filters and other conditions. The final dataset obtained from above can be stored in different ways like in a file or in a table or in memory. Could you please write a utility program for it in either java/python/ shell script
+
+Let's walk through a sample run and invocation of the `DataFetcher` class with a concrete example. We'll assume you have the following setup:
+
+1. A SQLite database (`example.db`) with a table `employees`.
+2. A CSV file (`employees.csv`) containing employee data.
+3. An Excel file (`departments.xlsx`) with department data on the first sheet.
+4. A JSON file (`projects.json`) containing project data.
+
+We'll perform the following steps:
+
+1. Add the database, CSV, Excel, and JSON files to the DataFetcher.
+2. Fetch data from the database and CSV file, and filter the CSV data.
+3. Join the database table with the filtered CSV data.
+4. Group and aggregate the joined data.
+5. Combine data from multiple sources.
+6. Save the final results to a CSV, Excel, and JSON file.
+7. Save the final results back to the database.
+
+### Sample Run Code
+
+First, ensure you have the necessary data files and database. Here’s a brief setup:
+
+#### SQLite Database (`example.db`)
+Create a SQLite database with a table `employees`:
+
+```sql
+-- SQLite command to create and insert data
+CREATE TABLE employees (
+    id INTEGER PRIMARY KEY,
+    name TEXT,
+    department_id INTEGER,
+    salary INTEGER
+);
+
+INSERT INTO employees (id, name, department_id, salary) VALUES
+(1, 'John Doe', 1, 70000),
+(2, 'Jane Smith', 2, 80000),
+(3, 'Jim Brown', 1, 75000);
+```
+
+#### CSV File (`employees.csv`)
+Create a CSV file with the following content:
+
+```csv
+id,name,department_id,salary
+4,Anna Taylor,1,72000
+5,George Green,3,68000
+```
+
+#### Excel File (`departments.xlsx`)
+Create an Excel file with the following content on the first sheet:
+
+| department_id | department_name |
+|---------------|-----------------|
+| 1             | HR              |
+| 2             | IT              |
+| 3             | Finance         |
+
+#### JSON File (`projects.json`)
+Create a JSON file with the following content:
+
+```json
+[
+    {"id": 1, "name": "Project A", "department_id": 1},
+    {"id": 2, "name": "Project B", "department_id": 2},
+    {"id": 3, "name": "Project C", "department_id": 3}
+]
+```
+
+### Sample Python Script
+
+Here is the complete script with sample usage:
+
+```python
+import pandas as pd
+from sqlalchemy import create_engine
+
+class DataFetcher:
+    def __init__(self):
+        self.connections = {}
+        self.dataframes = {}
+
+    def add_database_connection(self, name, connection_string):
+        engine = create_engine(connection_string)
+        self.connections[name] = engine
+
+    def add_csv_file(self, name, filepath):
+        df = pd.read_csv(filepath)
+        self.dataframes[name] = df
+
+    def add_excel_file(self, name, filepath, sheet_name=0):
+        df = pd.read_excel(filepath, sheet_name=sheet_name)
+        self.dataframes[name] = df
+
+    def add_json_file(self, name, filepath):
+        df = pd.read_json(filepath)
+        self.dataframes[name] = df
+
+    def fetch_from_database(self, db_name, query, dataframe_name):
+        if db_name in self.connections:
+            engine = self.connections[db_name]
+            df = pd.read_sql_query(query, engine)
+            self.dataframes[dataframe_name] = df
+        else:
+            raise ValueError(f"No database connection named {db_name}")
+
+    def filter_dataframe(self, dataframe_name, filter_condition):
+        if dataframe_name in self.dataframes:
+            df = self.dataframes[dataframe_name].query(filter_condition)
+            self.dataframes[dataframe_name] = df
+        else:
+            raise ValueError(f"No dataframe named {dataframe_name}")
+
+    def join_dataframes(self, left_name, right_name, on, how='inner', joined_name='joined_df'):
+        if left_name in self.dataframes and right_name in self.dataframes:
+            df_left = self.dataframes[left_name]
+            df_right = self.dataframes[right_name]
+            joined_df = df_left.merge(df_right, on=on, how=how)
+            self.dataframes[joined_name] = joined_df
+        else:
+            raise ValueError(f"Dataframe(s) {left_name} or {right_name} do not exist")
+
+    def groupby_and_aggregate(self, dataframe_name, groupby_columns, agg_funcs, aggregated_name='aggregated_df'):
+        if dataframe_name in self.dataframes:
+            df = self.dataframes[dataframe_name]
+            agg_df = df.groupby(groupby_columns).agg(agg_funcs).reset_index()
+            self.dataframes[aggregated_name] = agg_df
+        else:
+            raise ValueError(f"No dataframe named {dataframe_name}")
+
+    def combine_dataframes(self, names, combined_name='combined_df'):
+        dfs = [self.dataframes[name] for name in names if name in self.dataframes]
+        combined_df = pd.concat(dfs, ignore_index=True)
+        self.dataframes[combined_name] = combined_df
+
+    def save_to_file(self, dataframe_name, filepath, file_format='csv'):
+        if dataframe_name in self.dataframes:
+            df = self.dataframes[dataframe_name]
+            if file_format == 'csv':
+                df.to_csv(filepath, index=False)
+            elif file_format == 'excel':
+                df.to_excel(filepath, index=False)
+            elif file_format == 'json':
+                df.to_json(filepath, orient='records')
+            else:
+                raise ValueError(f"Unsupported file format {file_format}")
+        else:
+            raise ValueError(f"No dataframe named {dataframe_name}")
+
+    def save_to_database(self, dataframe_name, db_name, table_name):
+        if dataframe_name in self.dataframes and db_name in self.connections:
+            df = self.dataframes[dataframe_name]
+            engine = self.connections[db_name]
+            df.to_sql(table_name, engine, if_exists='replace', index=False)
+        else:
+            raise ValueError(f"Dataframe {dataframe_name} or database {db_name} does not exist")
+
+# Example Usage
+if __name__ == "__main__":
+    df = DataFetcher()
+
+    # Add connections
+    df.add_database_connection('db1', 'sqlite:///example.db')  # Example for SQLite
+    df.add_csv_file('csv1', 'employees.csv')
+    df.add_excel_file('excel1', 'departments.xlsx', sheet_name=0)
+    df.add_json_file('json1', 'projects.json')
+
+    # Fetch data from database and filter CSV data
+    df.fetch_from_database('db1', 'SELECT * FROM employees', 'db_table')
+    df.filter_dataframe('csv1', 'salary > 70000')
+
+    # Join dataframes (e.g., join db_table with filtered csv1 on department_id)
+    df.join_dataframes('db_table', 'csv1', on='department_id', joined_name='joined_db_csv')
+
+    # Group and aggregate data (e.g., group by department_id and sum the salaries)
+    df.groupby_and_aggregate('joined_db_csv', ['department_id'], {'salary': 'sum'}, aggregated_name='aggregated_df')
+
+    # Combine multiple dataframes (e.g., combine all dataframes for demonstration)
+    df.combine_dataframes(['csv1', 'excel1', 'json1'], combined_name='combined_df')
+
+    # Save to different file formats
+    df.save_to_file('aggregated_df', 'output.csv')
+    df.save_to_file('aggregated_df', 'output.xlsx', file_format='excel')
+    df.save_to_file('aggregated_df', 'output.json', file_format='json')
+
+    # Save to database
+    df.save_to_database('aggregated_df', 'db1', 'aggregated_table')
+```
+
+### Detailed Walkthrough:
+
+1. **Adding Connections and Files**:
+    - Add a connection to the SQLite database.
+    - Load data from a CSV file (`employees.csv`).
+    - Load data from an Excel file (`departments.xlsx`).
+    - Load data from a JSON file (`projects.json`).
+
+2. **Fetching and Filtering Data**:
+    - Fetch data from the `employees` table in the SQLite database.
+    - Filter the CSV DataFrame to include only rows where `salary > 70000`.
+
+3. **Joining DataFrames**:
+    - Join the database DataFrame (`db_table`) with the filtered CSV DataFrame (`csv1`) on the `department_id` column.
+
+4. **Grouping and Aggregating Data**:
+    - Group the joined DataFrame by `department_id` and sum the `salary` column.
+
+5. **Combining DataFrames**:
+    - Combine multiple DataFrames into a single DataFrame (`combined_df`) for demonstration purposes.
+
+6. **Saving Results**:
+    - Save the aggregated DataFrame to CSV, Excel, and JSON files.
+    - Save the aggregated DataFrame back to the database in a table named `aggregated_table`.
+
+This example covers a range of common data processing tasks and demonstrates how to use the `DataFetcher` class to handle data from multiple sources, apply transformations, and save the results in various formats.
