@@ -1,0 +1,134 @@
+@Configuration
+public class CacheConfig {
+    
+    @Bean
+    public CacheManager cacheManager() {
+        return new ConcurrentMapCacheManager("entitlements");
+    }
+}
+
+
+-----
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class Entitlement {
+    private String entity;
+    private String nodeId;
+    private String orgId;
+    private String identityGroup;
+    private String role; // Admin, Approver, Editor, Viewer
+
+    // Getters, Setters, Constructors
+}
+
+----
+@Service
+public class EntitlementApiClient {
+
+    public List<Entitlement> fetchEntitlements(String userId, String action) {
+        // Mocking API response
+        return List.of(
+            new Entitlement("Entity1", "Node1", "Org1", "Group1", action)
+        );
+    }
+}
+-----
+
+@Service
+public class EntitlementService {
+
+    @Autowired
+    private EntitlementApiClient entitlementApiClient;
+
+    private static final List<String> ACTIONS = List.of("Admin", "Approve", "Edit", "View");
+
+    @Cacheable(value = "entitlements", key = "#userId")
+    public Map<String, Map<String, Entitlement>> loadEntitlementsForUser(String userId) {
+        Map<String, Map<String, Entitlement>> userEntitlements = new HashMap<>();
+
+        for (String action : ACTIONS) {
+            List<Entitlement> entitlements = entitlementApiClient.fetchEntitlements(userId, action);
+
+            entitlements.forEach(e -> 
+                userEntitlements
+                    .computeIfAbsent(action, k -> new HashMap<>())
+                    .put(e.getEntity(), e)
+            );
+        }
+
+        return userEntitlements;
+    }
+}
+-----
+
+@Service
+public class EntitlementValidator {
+
+    @Autowired
+    private EntitlementService entitlementService;
+
+    public boolean hasAccess(String userId, String action, String entity, String nodeId, String orgId, String identityGroup) {
+        Map<String, Map<String, Entitlement>> userEntitlements = entitlementService.loadEntitlementsForUser(userId);
+        if (userEntitlements == null) return false;
+
+        Map<String, Entitlement> actionEntitlements = userEntitlements.get(action);
+        if (actionEntitlements == null) return false;
+
+        Entitlement entitlement = actionEntitlements.get(entity);
+        if (entitlement == null) return false;
+
+        switch (entitlement.getRole()) {
+            case "Admin":
+            case "Viewer":
+                return true;
+            case "Approver":
+                return entitlement.getNodeId().equals(nodeId) && entitlement.getIdentityGroup().equals(identityGroup);
+            case "Editor":
+                return entitlement.getNodeId().equals(nodeId) && entitlement.getOrgId().equals(orgId);
+            default:
+                return false;
+        }
+    }
+}
+
+----
+
+@Service
+public class EntitlementCacheRefresher {
+
+    @Autowired
+    private CacheManager cacheManager;
+
+    @Autowired
+    private EntitlementService entitlementService;
+
+    @Scheduled(fixedRate = 60 * 60 * 1000) // Refresh every 1 hour
+    public void refreshCache() {
+        cacheManager.getCache("entitlements").clear(); // Clear cache
+    }
+}
+
+----
+
+@RestController
+@RequestMapping("/entitlements")
+public class EntitlementController {
+
+    @Autowired
+    private EntitlementValidator entitlementValidator;
+
+    @GetMapping("/check")
+    public boolean checkEntitlement(
+        @RequestParam String userId,
+        @RequestParam String action,
+        @RequestParam String entity,
+        @RequestParam String nodeId,
+        @RequestParam String orgId,
+        @RequestParam String identityGroup) {
+
+        return entitlementValidator.hasAccess(userId, action, entity, nodeId, orgId, identityGroup);
+    }
+}
+
+
